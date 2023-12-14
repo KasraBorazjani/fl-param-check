@@ -4,8 +4,8 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --mem=100000
-#SBATCH --job-name="fl-param-check-grid"
-#SBATCH --output="fl-param-check-grid-short.out"
+#SBATCH --job-name="fl-param-check-grid-nogpu"
+#SBATCH --output="fl-param-check-grid-nogpu.out"
 #SBATCH --mail-user=kasrabor@buffalo.edu
 #SBATCH --mail-type=all
 #SBATCH --partition=general-compute
