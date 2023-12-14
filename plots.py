@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
+import os
 
-def draw_bar_plot(vars_to_draw, var_labels, color_list, plt_xlabel, plt_ylabel, plt_title):
+def draw_bar_plot(vars_to_draw, var_labels, color_list, plt_xlabel, plt_ylabel, plt_title, filename, result_dir):
     fig, ax = plt.subplots()
     bar_width = 0.5/len(vars_to_draw)
     cursor = -0.25
@@ -11,4 +12,4 @@ def draw_bar_plot(vars_to_draw, var_labels, color_list, plt_xlabel, plt_ylabel, 
     ax.set_ylabel(plt_ylabel)
     ax.set_title(plt_title)
     ax.legend()
-    plt.savefig('client_label_distribution')
+    plt.savefig(os.path.join(result_dir, filename))

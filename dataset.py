@@ -17,6 +17,25 @@ def create_ds_from_labels(primary_label:int,
                           primary_label_fraction:float,
                           original_ds:Dataset
                           ):
+    """
+    Creates a dataset for a client with specified primary and secondary labels.
+
+    Args:
+        primary_label (int): Primary label for the client.
+        secondary_labels (Sequence[int]): List of secondary labels for the client.
+        label_indexes_list (List[np.array]): List of label indices for each digit (0-9).
+        total_ds_len (int): Total length of the original dataset.
+        primary_label_fraction (float): Fraction of the primary label in the client's dataset.
+        original_ds (Dataset): Original dataset.
+
+    Returns:
+        Tuple[ConcatDataset, List[np.array]]: Concatenated dataset and updated label index list.
+
+    Example:
+        client_dataset, updated_label_indexes = create_ds_from_labels(primary_label, secondary_labels,
+                                                                      label_indexes_list, total_ds_len,
+                                                                      primary_label_fraction, original_ds)
+    """
     
     
     # Find the primary label elements for dataset
@@ -48,6 +67,19 @@ def create_ds_from_labels(primary_label:int,
 
 def load_original_dataset(data_path):
 
+    """
+    Loads the original MNIST dataset.
+
+    Args:
+        data_path (str): Path to the MNIST dataset.
+
+    Returns:
+        Tuple[Dataset, Dataset, List[np.array]]: Training dataset, testing dataset, and label index list.
+
+    Example:
+        train_set, test_set, label_idx_list = load_original_dataset(data_path)
+    """
+
     mnist_transforms = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize((0.1307,), (0.3081,))])
@@ -64,12 +96,47 @@ def load_original_dataset(data_path):
     return train_set, test_set, label_idxs
 
 def has_enough_samples(label_idx_list, n_labels_needed, label_chosen):
+
+    """
+    Checks if there are enough samples for a chosen label.
+
+    Args:
+        label_idx_list (List[np.array]): List of label indices for each digit (0-9).
+        n_labels_needed (int): Number of labels needed.
+        label_chosen (int): Chosen label.
+
+    Returns:
+        bool: True if enough samples are available, False otherwise.
+
+    Example:
+        enough_samples = has_enough_samples(label_idx_list, n_labels_needed, label_chosen)
+    """
+
+
     if len(label_idx_list[label_chosen]) >= n_labels_needed:
         return True
     else:
         return False
 
 def generate_random_label_set(label_idx_list, primary_dataset_len, secondary_dataset_len, num_secondaries):
+
+    """
+    Generates a random set of labels for a client.
+
+    Args:
+        label_idx_list (List[np.array]): List of label indices for each digit (0-9).
+        primary_dataset_len (int): Length of the primary dataset.
+        secondary_dataset_len (int): Length of the secondary dataset.
+        num_secondaries (int): Number of secondary labels.
+
+    Returns:
+        List[int]: Randomly generated set of labels.
+
+    Example:
+        random_label_set = generate_random_label_set(label_idx_list, primary_dataset_len,
+                                                      secondary_dataset_len, num_secondaries)
+    """
+
     selected_labels = []
     while True:
         sample_label = np.random.randint(low=0, high=10, dtype=int)
@@ -80,13 +147,33 @@ def generate_random_label_set(label_idx_list, primary_dataset_len, secondary_dat
     for i in range(num_secondaries):
         while True:
             sample_label = np.random.randint(low=0, high=10, dtype=int)
-            if (has_enough_samples(label_idx_list, primary_dataset_len, sample_label)) and (sample_label not in selected_labels):
+            if (has_enough_samples(label_idx_list, secondary_dataset_len, sample_label)) and (sample_label not in selected_labels):
                 selected_labels.append(sample_label)
                 break
         
     return selected_labels
 
 def create_client_ds(original_ds, label_idx_list, total_ds_len, primary_label_fraction, num_secondaries):
+    
+    """
+    Creates a dataset for a federated learning client.
+
+    Args:
+        original_ds (Dataset): Original dataset.
+        label_idx_list (List[np.array]): List of label indices for each digit (0-9).
+        total_ds_len (int): Total length of the original dataset.
+        primary_label_fraction (float): Fraction of the primary label in the client's dataset.
+        num_secondaries (int): Number of secondary labels.
+
+    Returns:
+        Tuple[Dataset, List[np.array], List[int]]: Client dataset, updated label index list, and label set.
+
+    Example:
+        client_dataset, updated_label_indexes, label_set = create_client_ds(original_ds, label_idx_list,
+                                                                             total_ds_len, primary_label_fraction,
+                                                                             num_secondaries)
+    """
+
     primary_dataset_len = int(primary_label_fraction * total_ds_len)
     secondary_dataset_len = int(((1-primary_label_fraction)/num_secondaries) * total_ds_len)
     label_set = generate_random_label_set(label_idx_list, primary_dataset_len, secondary_dataset_len, num_secondaries)

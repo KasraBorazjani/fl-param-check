@@ -20,7 +20,53 @@ import networkx as nx
 
 
 class MNIST_client():
+    """
+    MNIST_client class for federated learning on the MNIST dataset.
+
+    Args:
+        original_ds (torch.utils.data.Dataset): The original MNIST dataset.
+        client_id (int): Identifier for the client.
+        label_idx_list (List[int]): List of label indices to include in the client's dataset.
+        args (argparse.Namespace): Command-line arguments.
+        neighbors: List of neighboring clients.
+
+    Attributes:
+        client_id (int): Identifier for the client.
+        dataset (torch.utils.data.Dataset): Client-specific dataset.
+        dataloader (torch.utils.data.DataLoader): DataLoader for the client's dataset.
+        model (simpleModel): Client's model.
+        updated_model (simpleModel): Client's model placeholder after aggregation.
+        history (Dict[str, List[float]]): Training and validation accuracy and loss history.
+        sgd_per_round (int): Number of stochastic gradient descent steps per federated round.
+        device (str): Device (e.g., 'cpu' or 'cuda') for model training.
+        criterion (torch.nn.Module): Negative log-likelihood loss criterion.
+        neighbors: List of neighboring clients.
+        init_lr (float): Initial learning rate for stochastic gradient descent.
+
+    Methods:
+        __init__: Initializes the MNIST_client object.
+        train_one_round: Performs one round of federated learning on the client's dataset.
+        validate_model: Validates the model on a given validation loader.
+
+    Example:
+        client = MNIST_client(original_ds, client_id, label_idx_list, args, neighbors)
+        client.train_one_round()
+        client.validate_model(val_loader)
+    """
+    
     def __init__(self, original_ds, client_id, label_idx_list, args, neighbors):
+
+        """
+        Initializes the MNIST_client object.
+
+        Args:
+            original_ds (torch.utils.data.Dataset): The original MNIST dataset.
+            client_id (int): Identifier for the client.
+            label_idx_list (List[int]): List of label indices to include in the client's dataset.
+            args (argparse.Namespace): Command-line arguments.
+            neighbors: List of neighboring clients.
+        """
+
         self.client_id = client_id
         self.dataset, label_idx_list, self.label_set = create_client_ds(original_ds, label_idx_list, args.total_ds_len, args.primary_label_fraction, args.num_secondaries)
         self.dataloader = DataLoader(dataset=self.dataset, batch_size=args.batch_size, shuffle=args.shuffle_dataset)
@@ -39,6 +85,11 @@ class MNIST_client():
 
     
     def train_one_round(self):
+
+        """
+        Performs one round of local training on the client's dataset.
+        Updates the model based on the local dataset using stochastic gradient descent.
+        """
 
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.init_lr, momentum=0.5)
         self.model.train()
@@ -70,6 +121,14 @@ class MNIST_client():
         self.history['train_acc'].append(100*train_correct/train_total)
     
     def validate_model(self, val_loader):
+
+        """
+        Validates the model on a given validation loader.
+
+        Args:
+            val_loader (torch.utils.data.DataLoader): DataLoader for validation data.
+        """
+
         self.model.eval()
         
         with torch.no_grad():
@@ -96,29 +155,59 @@ class MNIST_client():
 
 
 class Network():
+    """
+    Network class for federated learning on the MNIST dataset.
+
+    Args:
+        args (argparse.Namespace): Command-line arguments.
+
+    Attributes:
+        train_set (torchvision.datasets.MNIST): Training dataset.
+        test_set (torchvision.datasets.MNIST): Testing dataset.
+        val_loader (torch.utils.data.DataLoader): DataLoader for validation data.
+        label_idxs (List[np.array]): List of label indices for each digit (0-9).
+        network_graph (networkx.Graph): Graph representing the network structure.
+        num_clients (int): Number of clients in the network.
+        clients (List[MNIST_client]): List of MNIST_client objects.
+        num_fed_rounds (int): Number of federated learning rounds.
+        model_inertia (float): Model inertia parameter.
+        result_path (str): Path to store results.
+    
+    Methods:
+        __init__: Initializes the Network object.
+        aggregate_models: Aggregates models of clients based on model inertia and neighbors.
+        run: Runs the federated learning process.
+        plot_summaries: Plots summaries of accuracy and loss across models.
+        plot_label_distribution: Plots the distribution of primary and secondary labels across clients.
+
+    Example:
+        network = Network(args)
+        network.run()
+    """
     
     def __init__(self, args) -> None:
-        '''
-        Initializing the network parameters given arguments 'args'
-        See parse_args.py for further information on the available options.
-        '''
+        """
+        Initializes the Network object.
 
+        Args:
+            args (argparse.Namespace): Command-line arguments.
+        """
+
+        # Transforms to be applied on each data sample before being passed to the model (Transforming to tensor and normalizing channel values)
         mnist_transforms = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.1307,), (0.3081,))])
 
+        # Loading the training dataset and validation dataset of MNIST
         self.train_set = torchvision.datasets.MNIST(args.data_path, download=True, train=True, transform=mnist_transforms)
         self.test_set = torchvision.datasets.MNIST(args.data_path, download=True, train=False, transform=mnist_transforms)
         self.val_loader = DataLoader(self.test_set, batch_size=1)
 
+        # Counting the index of the datapoints for each label
         self.label_idxs = [np.array([], dtype=int) for i in range(10)]
         for i, datapoint in enumerate(self.train_set):
             self.label_idxs[datapoint[1]] = np.append(self.label_idxs[datapoint[1]], int(i))
 
-
-        # # Initializing the global model
-        # self.global_model = simpleModel()
-        # self.global_model.load_state_dict(torch.load(os.path.join(args.saved_model_path, 'initial_model_weights.pth')))
         
         # Initializing the global network
         self.network_graph = nx.random_regular_graph(d=args.neighbors_per_client, n=args.num_clients, seed=args.random_seed)
@@ -135,50 +224,63 @@ class Network():
         self.num_fed_rounds = args.num_fed_rounds
         self.model_inertia = args.model_inertia
         self.result_path = setup_result_path(args)
+        self.plot_label_distribution()
         
 
+    # Aggregation function
     def aggregate_models(self):
+        """
+        Aggregates models of clients based on model inertia and neighbors.
+        """
         with torch.no_grad():
             for client in self.clients:
-                # if client.client_id == 1:
-                #     print(f"Client {client.client_id}")
+
                 aggregated_model = deepcopy(client.model.state_dict())
+
                 for key in aggregated_model.keys():
-                    # if client.client_id == 1:
-                    #     print(f"key value: {aggregated_model[key][0]}")
+
+                    # Initializing to the client's weights * model_inertia
                     aggregated_model[key] = self.model_inertia * client.model.state_dict()[key]
+
+                    # Aggregating with neighbor weights with an effect of (1-model_inertia)
                     for neighbor_id in client.neighbors:
-                        # if client.client_id == 1:
-                        #     print(f"neighbor: {neighbor_id}")
-                        #     print(f"key value: {self.clients[neighbor_id].model.state_dict()[key][0]}")
                         aggregated_model[key] += ((1 - self.model_inertia)/(len(client.neighbors))) * self.clients[neighbor_id].model.state_dict()[key]
                 
+                # Updating the client's updated model with the aggregated weights
                 client.updated_model.load_state_dict(aggregated_model)
     
     
     def run(self):
+        """
+        Runs the federated learning process.
+        """
+
         for fed_round in range(self.num_fed_rounds):
-            
-            # print(f"fed round {fed_round}")
 
             for client in self.clients:
-                # print(f"training client {client.client_id}")
+                
+                # Loading the updated model (aggregated model) into the model that will be used for training
                 client.model.load_state_dict(client.updated_model.state_dict())
-                # print(f"aggregated model copied")
+
+                # Validating the performance of the aggregated model
                 client.validate_model(self.val_loader)
-                # print(f"validation accuracy gathered: {client.history['val_acc'][-1]}")
+                
+                # Training the client for one round
                 client.train_one_round()
-                # print(f"client trained")
             
-            # print("aggregating models")
+            # Aggregating the client models
             self.aggregate_models()
+
             print(f"fed round {fed_round} done!")
 
-        # print("plotting summaries")
+        # Plotting the summary of the training
         self.plot_summaries()
     
 
     def plot_summaries(self):
+        """
+        Plots summaries of accuracy and loss across models.
+        """
 
         overall_acc_mean = []
         overall_loss_mean = []
@@ -229,10 +331,13 @@ class Network():
     
 
     def plot_label_distribution(self):
+        """
+        Plots the distribution of primary and secondary labels across clients.
+        """
+        
         label_sets = []
         for client in self.clients:
             label_sets.append(client.label_set)
-            # print(len(client.dataset))
         label_sets = np.asarray(label_sets)
         primary_labels = label_sets[:, 0]
         secondary_labels = label_sets[:, 1]
@@ -240,7 +345,7 @@ class Network():
         secondary_stats = np.unique(secondary_labels, return_counts=True)
         draw_bar_plot([primary_stats, secondary_stats], ['Primary Labels', 'Secondary Labels'], ['blue', 'orange'], 'Label Value',
                                                         'Number of Present Labels', 'distribution of labels across existing clients',
-                                                        f'label_distribution_{self.num_clients}.png')
+                                                        f'label_distribution_{self.num_clients}.png', self.result_path)
         
         
             
