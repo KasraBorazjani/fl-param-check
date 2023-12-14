@@ -23,7 +23,7 @@ def parse_arguments():
     parser.add_argument('--shuffle_dataset', action='store_true', default=True, help='shuffling dataset (default: True)')
 
     ## Runtime Args ##
-    parser.add_argument('--acc_used', action='store_true', default=True, help='whether acceleration (GPU/MPS) is used (default: False)')
+    parser.add_argument('--acc_used', action='store_true', default=False, help='whether acceleration (GPU/MPS) is used (default: False)')
     parser.add_argument('--random_seed', type=int, default=42, help='random seed - set manually to adapt repeatability (default: 42)')
     parser.add_argument('--num_fed_rounds', type=int, default=70, help='maximum number of federated rounds to run the code for (default: 100)')
     parser.add_argument('--data_path', type=str, default="../data/mnist", help='directory for data to be loaded from')
