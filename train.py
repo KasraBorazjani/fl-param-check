@@ -18,13 +18,7 @@ def main():
 
     network.run()
 
-    # print(len(network.clients))
-    
-                                        
-    
-    
-
-    
+    print(f"fl_param_check_lambda_{args.model_inertia}_length_{args.sgd_per_round} done!")
 
     
 

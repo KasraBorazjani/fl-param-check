@@ -1,0 +1,20 @@
+#!/bin/bash
+#
+#SBATCH --time=7:00:00
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --mem=100000
+#SBATCH --job-name="fl-param-check-grid"
+#SBATCH --output="fl-param-check-grid.out"
+#SBATCH --mail-user=kasrabor@buffalo.edu
+#SBATCH --mail-type=all
+#SBATCH --partition=general-compute
+#SBATCH --qos=general-compute
+#SBATCH --constraint=A100
+#SBATCH --cluster=ub-hpc
+#SBATCH --reservation=ubhpc-future
+
+
+module load python foss matplotlib scipy-bundle matplotlib pytorch cuda cudnn
+
+python array_run.py

@@ -202,6 +202,12 @@ class Network():
         overall_acc_std = np.asarray(overall_acc_std)
         overall_loss_mean = np.asarray(overall_loss_mean)
         overall_loss_std = np.asarray(overall_loss_std)
+
+        np.savetxt(os.path.join(self.result_path, 'overall_acc_mean.csv'), overall_acc_mean, delimiter=",")
+        np.savetxt(os.path.join(self.result_path, 'overall_acc_std.csv'), overall_acc_mean, delimiter=",")
+        np.savetxt(os.path.join(self.result_path, 'overall_loss_mean.csv'), overall_acc_mean, delimiter=",")
+        np.savetxt(os.path.join(self.result_path, 'overall_loss_std.csv'), overall_acc_mean, delimiter=",")
+        
         
         x = [i for i in range(len(overall_acc_mean))]
         plt.figure()
