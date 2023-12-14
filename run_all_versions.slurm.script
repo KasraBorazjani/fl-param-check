@@ -15,6 +15,7 @@
 #SBATCH --reservation=ubhpc-future
 
 
-module load python foss matplotlib scipy-bundle matplotlib pytorch cuda cudnn
+module load python foss matplotlib scipy-bundle matplotlib pytorch torchvision cuda cudnn
+pip install networkx
 
 python array_run.py
