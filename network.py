@@ -172,6 +172,7 @@ class Network():
             
             # print("aggregating models")
             self.aggregate_models()
+            print(f"fed round {fed_round} done!")
 
         # print("plotting summaries")
         self.plot_summaries()
