@@ -12,9 +12,11 @@ def main():
 
     np.random.seed(args.random_seed)
     torch.manual_seed(args.random_seed)
-    
+
 
     network = Network(args)
+
+    network.run()
 
     # print(len(network.clients))
     

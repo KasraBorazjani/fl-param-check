@@ -20,7 +20,7 @@ import networkx as nx
 
 
 class MNIST_client():
-    def __init__(self, original_ds, client_id, label_idx_list, args):
+    def __init__(self, original_ds, client_id, label_idx_list, args, neighbors):
         self.client_id = client_id
         self.dataset, label_idx_list, self.label_set = create_client_ds(original_ds, label_idx_list, args.total_ds_len, args.primary_label_fraction, args.num_secondaries)
         self.dataloader = DataLoader(dataset=self.dataset, batch_size=args.batch_size, shuffle=args.shuffle_dataset)
@@ -32,13 +32,15 @@ class MNIST_client():
         self.sgd_per_round = args.sgd_per_round
         self.device = args.device
         self.model.to(self.device)
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=args.init_lr, momentum=0.5)
+        self.updated_model.to(self.device)
         self.criterion = nn.NLLLoss()
-        self.neighbors = []
+        self.neighbors = neighbors
+        self.init_lr = args.init_lr
 
     
     def train_one_round(self):
-        
+
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.init_lr, momentum=0.5)
         self.model.train()
         train_correct = 0
         train_total = 0
@@ -125,10 +127,9 @@ class Network():
         self.num_clients = args.num_clients
         self.clients = []
         for i in range(self.num_clients):
-            self.clients.append(MNIST_client(self.train_set, i, self.label_idxs, args))
-        
-        for client in self.clients:
-            client.neighbors = list(nx.neighbors(self.network_graph, client.client_id))
+            client_neighbors = list(nx.neighbors(self.network_graph, i))
+            self.clients.append(MNIST_client(self.train_set, i, self.label_idxs, args, client_neighbors))
+
         
         # Initializing the runtime variables
         self.num_fed_rounds = args.num_fed_rounds
@@ -137,26 +138,42 @@ class Network():
         
 
     def aggregate_models(self):
-        for client in self.clients:
-            aggregated_model = self.model_inertia * client.model.state_dict()
-            for key in aggregated_model.keys():
-                for neighbor_id in client.neighbors:
-                    aggregated_model[key] += (1 - self.model_inertia) * self.clients[neighbor_id].model.state_dict()[key]
-                aggregated_model[key] = aggregated_model[key]/(len(client.neighbors)+1)
-            
-            client.updated_model.load_state_dict(aggregated_model)
+        with torch.no_grad():
+            for client in self.clients:
+                # if client.client_id == 1:
+                #     print(f"Client {client.client_id}")
+                aggregated_model = deepcopy(client.model.state_dict())
+                for key in aggregated_model.keys():
+                    # if client.client_id == 1:
+                    #     print(f"key value: {aggregated_model[key][0]}")
+                    aggregated_model[key] = self.model_inertia * client.model.state_dict()[key]
+                    for neighbor_id in client.neighbors:
+                        # if client.client_id == 1:
+                        #     print(f"neighbor: {neighbor_id}")
+                        #     print(f"key value: {self.clients[neighbor_id].model.state_dict()[key][0]}")
+                        aggregated_model[key] += ((1 - self.model_inertia)/(len(client.neighbors))) * self.clients[neighbor_id].model.state_dict()[key]
+                
+                client.updated_model.load_state_dict(aggregated_model)
     
     
     def run(self):
         for fed_round in range(self.num_fed_rounds):
+            
+            # print(f"fed round {fed_round}")
 
             for client in self.clients:
-                client.model = deepcopy(client.updated_model)
+                # print(f"training client {client.client_id}")
+                client.model.load_state_dict(client.updated_model.state_dict())
+                # print(f"aggregated model copied")
                 client.validate_model(self.val_loader)
+                # print(f"validation accuracy gathered: {client.history['val_acc'][-1]}")
                 client.train_one_round()
+                # print(f"client trained")
             
+            # print("aggregating models")
             self.aggregate_models()
-        
+
+        # print("plotting summaries")
         self.plot_summaries()
     
 
@@ -173,13 +190,18 @@ class Network():
             loss_list = []
 
             for client in self.clients:
-                acc_list.append(client.history['val_acc'])
-                loss_list.append(client.history['val_loss'])
+                acc_list.append(client.history['val_acc'][step])
+                loss_list.append(client.history['val_loss'][step])
 
             overall_acc_mean.append(np.mean(acc_list))
             overall_loss_mean.append(np.mean(loss_list))
             overall_acc_std.append(np.std(acc_list))
             overall_loss_std.append(np.std(loss_list))
+        
+        overall_acc_mean = np.asarray(overall_acc_mean)
+        overall_acc_std = np.asarray(overall_acc_std)
+        overall_loss_mean = np.asarray(overall_loss_mean)
+        overall_loss_std = np.asarray(overall_loss_std)
         
         x = [i for i in range(len(overall_acc_mean))]
         plt.figure()

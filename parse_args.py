@@ -9,14 +9,14 @@ def parse_arguments():
     # Add arguments to the parser
     
     ## Training Param Args ##
-    parser.add_argument('--sgd_per_round', type=int, default=5, help='number of local epochs per federated round (default: 1)')
-    parser.add_argument('--num_clients', type=int, default=20, help='number of clients simulated (default: 50)')
+    parser.add_argument('--sgd_per_round', type=int, default=1, help='number of local epochs per federated round (default: 1)')
+    parser.add_argument('--num_clients', type=int, default=50, help='number of clients simulated (default: 50)')
     parser.add_argument('--neighbors_per_client', type=int, default=5, help='number of clients simulated (default: 50)')
-    parser.add_argument('--model_inertia', type=float, default=0.5, help='inertia for model aggregation (default: 50)')
+    parser.add_argument('--model_inertia', type=float, default=0.05, help='inertia for model aggregation (default: 50)')
 
 
     ## Dataset Args ##
-    parser.add_argument('--total_ds_len', type=int, default=200, help='total dataset length for each client (default: 200)')
+    parser.add_argument('--total_ds_len', type=int, default=500, help='total dataset length for each client (default: 200)')
     parser.add_argument('--primary_label_fraction', type=float, default=0.75, help="fraction of each client's dataset that is occupied by the preferred label (default: 0.75)")
     parser.add_argument('--num_secondaries', type=int, default=1, help='number of secondary labels (default: 1)')
     parser.add_argument('--batch_size', type=int, default=16, help='batch size (default: 16)')
