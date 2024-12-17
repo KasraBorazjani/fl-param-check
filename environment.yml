@@ -1,7 +1,8 @@
-name: mth555-fp
+name: ee-595
 channels:
   - pytorch
   - defaults
+  - conda-forge
 dependencies:
   - appnope=0.1.2=py38hca03da5_1001
   - asttokens=2.0.5=pyhd3eb1b0_0
@@ -132,4 +133,4 @@ dependencies:
       - pytz==2023.3.post1
       - tzdata==2023.3
       - zipp==3.17.0
-prefix: /Users/kasraborazjani/opt/miniconda3/envs/mth555-fp
+prefix: /Users/kasraborazjani/opt/miniconda3/envs/ee-595
